@@ -1,0 +1,49 @@
+# CI/CD cho DateTimeChecker
+name: CI/CD for DateTimeChecker  # Tên của workflow, giúp nhận diện trên GitHub Actions
+on:  # Định nghĩa các sự kiện kích hoạt workflow
+  push:  # Chạy khi có code được đẩy lên nhánh main
+    branches: [ main ]
+  pull_request:  # Chạy khi có pull request nhắm vào nhánh main
+    branches: [ main ]
+
+jobs:
+  test:  # Job kiểm thử code
+    runs-on: ubuntu-latest  # Chạy trên môi trường Ubuntu mới nhất
+
+    permissions:  # Thêm quyền cho GITHUB_TOKEN để ghi kết quả kiểm thử và cập nhật pull request
+      checks: write
+      pull-requests: write
+
+    steps:  # Các bước thực thi trong job
+      - name: Checkout mã nguồn  # Lấy mã nguồn từ repository về runner
+        uses: actions/checkout@v4
+
+      - name: Setup Java  # Cài đặt Java để sử dụng Maven
+        uses: actions/setup-java@v4
+        with:
+          java-version: '23'  # Phiên bản Java 23
+          distribution: 'adopt'  # Sử dụng AdoptOpenJDK
+      - name: Build and Test with Maven  # Xây dựng project và chạy các test case
+        run: mvn clean test
+
+      - name: Generate JUnit Report  # Tạo báo cáo JUnit từ kết quả kiểm thử
+        if: always()  # Luôn chạy bước này kể cả khi các bước trước đó thất bại
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'target/surefire-reports/*.xml'  # Đường dẫn đến file báo cáo test
+
+      - name: Upload Test Results  # Tải lên kết quả test dưới dạng artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Test Results
+          path: target/surefire-reports/
+
+      - name: Test Report  # Hiển thị báo cáo test trên giao diện GitHub Actions
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Test Report
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+
+
